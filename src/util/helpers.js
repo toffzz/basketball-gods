@@ -1,10 +1,9 @@
 import fetch from 'node-fetch'
 import _ from 'lodash'
 
-export const fetchGame = (id) => {
+export const fetchGames = (id) => {
   return new Promise((resolve, reject) => {
-    //401163174
-    fetch('http://site.web.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event='+ id +'&lang=en&region=us&contentorigin=espn&showAirings=buy,live&showZipLookup=true&buyWindow=1m')
+    fetch('http://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard')
       .then((response) => {
         return response.json()
       }).then((data) => {
@@ -13,37 +12,70 @@ export const fetchGame = (id) => {
   })
 }
 
-const normalizeData = (data) => {
-  const boxscore = _.get(data, 'boxscore') || {},
-    awayTeam = _.get(boxscore, 'teams[0].team') || {},
-    homeTeam = _.get(boxscore, 'teams[1].team') || [],
-    awayTeamStats = _.get(boxscore, 'teams[0].statistics') || [],
-    homeTeamStats = _.get(boxscore, 'teams[1].statistics') || [],
-    teamThreesArray = [],
-    teams = [_.get(awayTeam, 'displayName'), _.get(homeTeam, 'displayName')]
-
-
-  _.forEach([awayTeamStats, homeTeamStats], (stats, i) =>{
-    const threeObj = _.find(stats, (stat) => {
-      // return three stats if it matches with enabled stats since it's the only enabled stat
-      return _.includes(enabledStats, _.get(stat, 'name'))
-    }),
-      threeString = _.get(threeObj, 'displayValue'),
-      threeSplit = threeString && threeString.split('-')
-    if(threeSplit && threeSplit.length === 2){
-      teamThreesArray.push({
-        teamName: teams[i],
-        made: threeSplit[0],
-        attemped: threeSplit[1],
-        madeAttempted: threeString,
-        surplus: 1
-      })
-    }
-  })
-
-  return {
-    threes: teamThreesArray
-  }
+const round = (value, decimals) => {
+  return Number(Math.round(value+'e'+decimals)+'e-'+decimals);
 }
 
-const enabledStats = ['threePointFieldGoalsMade-threePointFieldGoalsAttempted']
+const normalizeData = (data) => {
+  const events = _.get(data, "events"),
+    normalizedEvents = []
+
+  if(events){
+    _.forEach(events, (event, i) =>{
+      const status = _.get(event, "status"),
+        competitors = _.get(event, "competitions[0].competitors")
+      let awayObj = {},
+        homeObj = {}
+
+      if(competitors){
+        _.forEach(competitors, (competitor, j) => {
+          const statistics = _.get(competitor, "statistics"),
+            score = _.get(competitor, "score"),
+            team = _.get(competitor, "team"),
+            threePointPercentage = 1/3
+          let madeThrees,
+            attemptedThrees,
+            surplus
+
+          _.forEach(statistics, (stat) => {
+            const statField = _.get(stat, "name")
+            if(_.includes(enabledFields, statField)){
+              const displayValue = _.get(stat, "displayValue")
+              statField === "threePointFieldGoalsAttempted" ? attemptedThrees = displayValue : madeThrees = displayValue
+            }
+          })
+
+          surplus = round(parseInt(madeThrees) - parseInt(attemptedThrees) * threePointPercentage, 2)
+          const statsArray = { made: madeThrees, attempted: attemptedThrees, surplus, score }
+          let teamObj = {
+            team: team,
+            stats: statsArray
+          }
+          _.get(competitor, "homeAway") === "home" ? homeObj = teamObj : awayObj = teamObj
+        })
+      }
+
+      const homeSurplus = _.get(homeObj, "stats.surplus"),
+        awaySurplus = _.get(awayObj, "stats.surplus"),
+        surplusTeam = homeSurplus < awaySurplus ? 'home' : 'away',
+        surplusDiff = round(Math.abs(homeSurplus - awaySurplus), 2),
+        surplus = {
+          team: surplusTeam === 'home' ? _.get(homeObj, 'team') : _.get(awayObj, 'team'),
+          surplusDiff
+        }
+
+
+
+      normalizedEvents.push({
+        home: homeObj,
+        away: awayObj,
+        surplus,
+        status
+      })
+    })
+  }
+
+  return normalizedEvents
+}
+
+const enabledFields = ["threePointFieldGoalsAttempted", "threePointFieldGoalsMade"]

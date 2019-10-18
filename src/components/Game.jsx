@@ -1,24 +1,13 @@
 import React, { useState } from 'react';
-import { fetchGame } from '../util/helpers'
 import { Table } from 'reactstrap';
 import _ from 'lodash'
 import { Container, Row, Col, Alert, InputGroup, InputGroupAddon, Button, Input } from 'reactstrap';
 
 function Game(props) {
-  const { addGameHandler, gameCount } = props
-  const [data, updateData] = useState(false)
-  const [gameId, updateGameId] = useState('')
-  /*if(!data){
-    fetchGame().then((gameData) => {
-      updateData(gameData)
-    })
-  }*/
-  console.log(gameCount)
-  const RenderTable = () => {
-    const threesArray = data.threes
-    console.log("three check", data.threes)
-    if(data) {
+  const { game } = props
+  console.log("game here", game)
 
+  const RenderTable = () => {
       /*
       attemped: "31"
       made: "9"
@@ -26,28 +15,33 @@ function Game(props) {
       surplus: 1
       teamName: "Charlotte Hornets"
       */
-
+      const gameArray = [_.get(game, 'away'), _.get(game, 'home')]
       return(
         <Table bordered dark>
           <thead>
             <tr>
               <th> Team </th>
+              <th> Score </th>
               <th> 3PM-3PA </th>
-              <th> Surplus (fake) </th>
+              <th> Surplus </th>
             </tr>
           </thead>
           <tbody>
-            { threesArray.map((team) => {
+            { gameArray.map((team) => {
+
               return(
-                <tr key={team.teamName}>
+                <tr key={ _.get(team, 'team.uid') }>
                   <td>
-                    { team.teamName }
+                    { _.get(team, 'team.displayName')}
                   </td>
                   <td>
-                    { team.madeAttempted }
+                    { _.get(team, 'stats.score')}
                   </td>
                   <td>
-                    { team.surplus }
+                    { _.get(team, 'stats.made') + '-' + _.get(team, 'stats.attempted') }
+                  </td>
+                  <td>
+                    { _.get(team, 'stats.surplus') }
                   </td>
                 </tr>
               )
@@ -55,33 +49,38 @@ function Game(props) {
           </tbody>
         </Table>
       )
-    }
 
     return(<Table></Table>)
   }
 
-  const submitHandler = () => {
-    fetchGame(gameId).then((gameData) => {
-      updateData(gameData)
-    })
-    addGameHandler()
+  const Surplus = () => {
+    const surplus = _.get(game, 'surplus')
+    return(
+      <div>
+        Surplus is { _.get(surplus, 'surplusDiff') }
+      </div>
+    )
   }
 
-  const updateInput = (e) => {
-    updateGameId(e.target.value)
-  }
-
-  const RenderGameData = () => {
-    return [<RenderTable />, <Alert> Bet on this Game </Alert>]
+  const Status = () => {
+    const status = _.get(game, 'status'),
+      quarter = {
+        1: '1Q',
+        2: '2Q',
+        3: '3Q',
+        4: '4Q'
+      }
+    return (
+      <div>
+        {quarter[_.get(status, 'period')]} - {_.get(status, 'displayClock')}
+      </div>
+    )
   }
   return (
     <Col xs="4">
-      {data ? <RenderGameData /> :
-        <InputGroup>
-          <Input key={"game-" + gameCount} onChange={e => updateInput(e)} value={gameId} placeholder="Enter Game ID here: 401163174"/>
-          <InputGroupAddon addonType="append"><Button onClick={submitHandler}>Submit</Button></InputGroupAddon>
-        </InputGroup>
-      }
+      <RenderTable />
+      <Status />
+      <Surplus />
     </Col>
 
   )
