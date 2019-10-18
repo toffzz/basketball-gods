@@ -54,11 +54,41 @@ function Game(props) {
   }
 
   const Surplus = () => {
-    const surplus = _.get(game, 'surplus')
+    const surplus = _.get(game, 'surplus'),
+      surplusDiff = _.get(surplus, 'surplusDiff'),
+      isGreaterThanOne = surplusDiff >= 1,
+      scoringMargin = _.get(surplus, 'scoringMargin')
+
+    const color = () => {
+      if(isGreaterThanOne && scoringMargin >= 0){
+        return 'success'
+      }
+      return 'danger'
+    }
+
+    const Message = () => {
+      if(isGreaterThanOne && scoringMargin >= 0){
+        return(
+          <div>
+            BET! <br />
+            Surplus ({surplusDiff}) > 1 <br />
+            Scoring Margin ({scoringMargin}) >= 0
+          </div>
+        )
+      }
+      return (
+        <div>
+          DON'T BET! <br />
+          Surplus: {surplusDiff} <br />
+          Scoring Margin: {scoringMargin}
+        </div>
+      )
+    }
+
     return(
-      <div>
-        Surplus is { _.get(surplus, 'surplusDiff') }
-      </div>
+      <Alert color={color()} >
+        <Message />
+      </Alert>
     )
   }
 

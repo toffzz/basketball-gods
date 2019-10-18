@@ -57,11 +57,15 @@ const normalizeData = (data) => {
 
       const homeSurplus = _.get(homeObj, "stats.surplus"),
         awaySurplus = _.get(awayObj, "stats.surplus"),
+        homeScore = _.get(homeObj, "stats.score"),
+        awayScore = _.get(awayObj, "stats.score"),
         surplusTeam = homeSurplus < awaySurplus ? 'home' : 'away',
         surplusDiff = round(Math.abs(homeSurplus - awaySurplus), 2),
+        scoringMargin = surplusTeam === 'home' ? homeScore - awayScore : awayScore - homeScore,      
         surplus = {
           team: surplusTeam === 'home' ? _.get(homeObj, 'team') : _.get(awayObj, 'team'),
-          surplusDiff
+          surplusDiff,
+          scoringMargin
         }
 
 
